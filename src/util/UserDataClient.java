@@ -1,12 +1,11 @@
 package util;
 
-import bean.User;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.HashMap;
+import bean.User;
 
 /**
  * 这个类连接数据服务器来获得数据
@@ -16,60 +15,83 @@ import java.util.HashMap;
  * 客户端通过Socket连接到数据服务器，并可以发送请求来获取用户信息或进行用户注册。
  * 其中，客户端定义了一个log方法用于打印日志信息，输出流outputToServer用于向服务器发送请求数据，输入流inputFromServer用于从服务器获取响应数据。
  * <p>
- * 该客户端实现了两个方法，分别是getUsers和addUser。
+ * 该客户端实现了两个方法，分别是getUsers和registerUser。
  * getUsers方法发送请求获取用户信息，然后从输入流中读取HashMap<String,User>类型的数据返回。
- * addUser方法先通过getUsers方法获取当前所有的用户信息，再根据传入的用户名和密码创建一个新的用户对象，向服务器发送添加用户的请求并将新用户对象写入输出流，最后根据服务器响应返回注册结果。
+ * registerUser方法先通过getUsers方法获取当前所有的用户信息，再根据传入的用户名和密码创建一个新的用户对象，向服务器发送添加用户的请求并将新用户对象写入输出流，最后根据服务器响应返回注册结果。
  *
  * @author ascent
  * @version 1.0
  */
 public class UserDataClient implements ProtocolPort {
+
     /**
      * socket引用
      */
     protected Socket hostSocket;
 
     /**
-     * 输出流的引用
+     * 输出流引用
      */
     protected ObjectOutputStream outputToServer;
 
     /**
-     * 输入流的引用
+     * 输入流引用
      */
     protected ObjectInputStream inputFromServer;
 
     /**
      * 默认构造方法
-     *
-     * @throws IOException
      */
     public UserDataClient() throws IOException {
         this(ProtocolPort.DEFAULT_HOST, ProtocolPort.DEFAULT_PORT);
     }
 
     /**
-     * 接受主机名和端口号的构造方法
+     * 构造方法，指定主机名和端口号
      */
     public UserDataClient(String hostName, int port) throws IOException {
 
-        log("连接数据服务器..." + hostName + ":" + port);
+        log("连接数据服务器...." + hostName + ":" + port);
         try {
             hostSocket = new Socket(hostName, port);
-            outputToServer = new ObjectOutputStream(hostSocket
-                    .getOutputStream());
+            outputToServer = new ObjectOutputStream(hostSocket.getOutputStream());
             inputFromServer = new ObjectInputStream(hostSocket.getInputStream());
-            log("连接成功.");
+            log("连接成功..");
         } catch (Exception e) {
             log("连接失败.");
         }
-
     }
 
     /**
-     * 关闭当前SocKet
+     * 获取用户信息
+     *
+     * @return 用户信息的HashMap
      */
-    public void closeSocKet() {
+    @SuppressWarnings("unchecked")
+    public HashMap<String, User> getUsers() {
+        HashMap<String, User> userTable = null;
+
+        try {
+            log("发送请求: OP_GET_USERS  ");
+
+            outputToServer.writeInt(ProtocolPort.OP_GET_USERS);
+            outputToServer.flush();
+
+            log("接受数据...");
+            userTable = (HashMap<String, User>) inputFromServer.readObject();
+
+        } catch (ClassNotFoundException | IOException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return userTable;
+    }
+
+    /**
+     * 关闭Socket连接
+     */
+    public void closeSocket() {
         try {
             this.hostSocket.close();
         } catch (IOException e) {
@@ -78,7 +100,9 @@ public class UserDataClient implements ProtocolPort {
     }
 
     /**
-     * 日志方法.
+     * 日志方法
+     *
+     * @param msg 要打印的日志信息
      */
     protected void log(Object msg) {
         System.out.println("UserDataClient类: " + msg);
@@ -86,9 +110,13 @@ public class UserDataClient implements ProtocolPort {
 
     /**
      * 注册用户
+     *
+     * @param username 用户名
+     * @param password 密码
+     * @return 注册是否成功，true表示成功，false表示失败
      */
-    public boolean addUser(String username, String password) {
-        HashMap map = this.getUsers();
+    public boolean addUser(String username, String password) {  
+        HashMap<String, User> map = this.getUsers();
         if (map.containsKey(username)) {
             return false;
         } else {
@@ -105,41 +133,5 @@ public class UserDataClient implements ProtocolPort {
 
         }
         return false;
-    }
-
-    /**
-     * 返回用户
-     *
-     * @return userTable
-     */
-    @SuppressWarnings("unchecked")
-    public HashMap<String, User> getUsers() {
-        HashMap<String, User> userTable = null;
-
-        try {
-            log("发送请求: OP_GET_USERS  ");
-
-            outputToServer.writeInt(ProtocolPort.OP_GET_USERS);
-            outputToServer.flush();
-
-            log("接收数据...");
-            userTable = (HashMap<String, User>) inputFromServer.readObject();
-
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return userTable;
-    }
-    //补充closeSocket，关闭连接
-    public void closeSocket() {
-        try {
-            this.hostSocket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 }
